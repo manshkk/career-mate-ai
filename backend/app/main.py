@@ -2,7 +2,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
-import fitz  # PyMuPDF
+from io import BytesIO
+from pypdf import PdfReader
 
 # -----------------------------
 # Load environment variables
@@ -16,10 +17,11 @@ print("OPENAI_API_KEY loaded:", bool(os.getenv("OPENAI_API_KEY")))
 from app.ai.analyze_resume import analyze_resume_text
 from app.ai.analyze_resume_v2 import analyze_resume_v2
 from app.ai.analyze_jd_match import analyze_jd_match
+from app.ai.rewrite_resume import rewrite_resume_bullets
 
 from app.schemas.resume_analysis_v2 import ResumeAnalysisV2
 from app.schemas.jd_match_analysis import JDMatchAnalysis
-
+from app.schemas.resume_rewrite import ResumeRewriteResponse
 
 # -----------------------------
 # FastAPI app
@@ -31,7 +33,7 @@ app = FastAPI(title="Career Mate AI")
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # tighten later after frontend deploy
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,18 +47,20 @@ def health_check():
     return {"status": "ok"}
 
 # -----------------------------
-# PDF Text Extraction
+# PDF Text Extraction (pypdf)
 # -----------------------------
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     try:
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
-        text = ""
-        for page in doc:
-            text += page.get_text()
-        return text.strip()
+        reader = PdfReader(BytesIO(file_bytes))
+        text_parts = []
+        for page in reader.pages:
+            text_parts.append(page.extract_text() or "")
+        return "\n".join(text_parts).strip()
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Failed to read PDF") from e
-
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to read PDF file",
+        ) from e
 
 # ======================================================
 # V1 — BASIC RESUME ANALYSIS
@@ -72,12 +76,7 @@ async def upload_resume(file: UploadFile = File(...)):
     if not resume_text:
         raise HTTPException(status_code=400, detail="Could not extract resume text")
 
-    try:
-        return await analyze_resume_text(resume_text)
-    except Exception as e:
-        print("V1 Resume analysis error:", e)
-        raise HTTPException(status_code=500, detail="Resume analysis failed")
-
+    return await analyze_resume_text(resume_text)
 
 # ======================================================
 # V2 — ATS RESUME SCORING
@@ -96,15 +95,10 @@ async def upload_resume_v2(
     if not resume_text:
         raise HTTPException(status_code=400, detail="Could not extract resume text")
 
-    try:
-        return await analyze_resume_v2(
-            resume_text=resume_text,
-            target_role=target_role,
-        )
-    except Exception as e:
-        print("V2 Resume analysis error:", e)
-        raise HTTPException(status_code=500, detail="Resume analysis failed")
-
+    return await analyze_resume_v2(
+        resume_text=resume_text,
+        target_role=target_role,
+    )
 
 # ======================================================
 # V3 — RESUME + JOB DESCRIPTION MATCHING
@@ -123,25 +117,21 @@ async def match_resume_with_jd(
     if not resume_text:
         raise HTTPException(status_code=400, detail="Could not extract resume text")
 
-    try:
-        return await analyze_jd_match(
-            resume_text=resume_text,
-            job_description=job_description,
-        )
-    except Exception as e:
-        print("JD match error:", e)
-        raise HTTPException(status_code=500, detail="JD matching failed")
+    return await analyze_jd_match(
+        resume_text=resume_text,
+        job_description=job_description,
+    )
 
-from app.ai.rewrite_resume import rewrite_resume_bullets
-from app.schemas.resume_rewrite import ResumeRewriteResponse
-
+# ======================================================
+# V4 — RESUME BULLET REWRITE
+# ======================================================
 @app.post("/rewrite-resume", response_model=ResumeRewriteResponse)
 async def rewrite_resume(
     file: UploadFile = File(...),
     job_description: str = Form(...),
 ):
     if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files supported")
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
     resume_bytes = await file.read()
     resume_text = extract_text_from_pdf(resume_bytes)
@@ -153,39 +143,3 @@ async def rewrite_resume(
         resume_text=resume_text,
         job_description=job_description,
     )
-
-
-@app.post("/rewrite-resume", response_model=ResumeRewriteResponse)
-async def rewrite_resume(
-    file: UploadFile = File(...),
-    job_description: str = Form(...),
-):
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files supported")
-
-    resume_bytes = await file.read()
-    resume_text = extract_text_from_pdf(resume_bytes)
-
-    if not resume_text:
-        raise HTTPException(status_code=400, detail="Could not extract resume text")
-
-    return await rewrite_resume_bullets(
-        resume_text=resume_text,
-        job_description=job_description,
-    )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-
-
-
-
-
-
