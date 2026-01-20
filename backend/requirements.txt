@@ -1,0 +1,14 @@
+fastapi==0.110.0
+uvicorn==0.27.1
+
+pydantic==2.10.3
+
+pydantic-ai==0.0.4
+openai==1.54.3
+
+python-dotenv==1.0.1
+
+PyMuPDF==1.23.26
+python-multipart==0.0.9
+
+

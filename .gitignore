@@ -1,0 +1,39 @@
+# =====================
+# ENV / Secrets
+# =====================
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# =====================
+# Python
+# =====================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.venv/
+
+# =====================
+# Node / Next.js
+# =====================
+node_modules/
+.next/
+out/
+dist/
+
+# =====================
+# Editor / OS
+# =====================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# =====================
+# Logs
+# =====================
+*.log
