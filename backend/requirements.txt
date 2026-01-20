@@ -8,7 +8,7 @@ openai==1.54.3
 
 python-dotenv==1.0.1
 
-PyMuPDF==1.23.26
+PyMuPDF==1.23.7
 python-multipart==0.0.9
 
 
