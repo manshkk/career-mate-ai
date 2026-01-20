@@ -2,44 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Career Mate AI</title>
+  <title>Career Mate AI — Resume Analyzer</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
       max-width: 800px;
       margin: 40px auto;
+      padding: 0 20px;
     }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
     textarea {
       width: 100%;
       height: 120px;
+      margin-top: 6px;
     }
+
+    input[type="file"] {
+      margin-top: 8px;
+    }
+
     button {
-      margin-top: 10px;
-      padding: 10px 16px;
+      margin-top: 15px;
+      padding: 10px 18px;
       font-size: 16px;
+      cursor: pointer;
     }
+
     pre {
       background: #f4f4f4;
       padding: 15px;
       overflow-x: auto;
+      margin-top: 15px;
+      white-space: pre-wrap;
     }
   </style>
 </head>
+
 <body>
 
   <h1>Career Mate AI</h1>
+  <p>Upload a resume PDF to get ATS score, role match, and detected skills.</p>
 
   <h3>Upload Resume (PDF)</h3>
   <input type="file" id="resume" accept=".pdf" />
 
-  <h3>Job Description (Optional)</h3>
-  <textarea id="jd" placeholder="Paste job description here..."></textarea>
+  <h3>Target Role / Job Description (Optional)</h3>
+  <textarea id="jd" placeholder="e.g. Data Analyst, Machine Learning Engineer..."></textarea>
 
   <br />
   <button onclick="analyzeResume()">Analyze Resume</button>
 
   <h3>Result</h3>
-  <pre id="output"></pre>
+  <pre id="output">Waiting for input...</pre>
 
   <script>
     async function analyzeResume() {
@@ -48,35 +67,41 @@
       const output = document.getElementById("output");
 
       if (!fileInput.files.length) {
-        alert("Please upload a resume PDF");
+        alert("Please upload a resume PDF.");
         return;
       }
 
       const formData = new FormData();
       formData.append("file", fileInput.files[0]);
+
       if (jd.trim()) {
         formData.append("target_role", jd);
       }
 
-      output.textContent = "Analyzing...";
+      output.textContent = "Analyzing resume...";
 
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/upload-resume/v2",
+          "https://career-mate-ai.onrender.com/upload-resume/v2",
           {
             method: "POST",
             body: formData
           }
         );
 
+        if (!response.ok) {
+          throw new Error("Server returned status " + response.status);
+        }
+
         const data = await response.json();
         output.textContent = JSON.stringify(data, null, 2);
 
-      } catch (err) {
-        output.textContent = "Error: " + err.message;
+      } catch (error) {
+        output.textContent = "Error: " + error.message;
       }
     }
   </script>
 
 </body>
 </html>
+
